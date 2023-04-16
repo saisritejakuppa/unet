@@ -26,5 +26,11 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--shuffle', type=bool, default=True, help='shuffle the dataset')
         self.parser.add_argument('--num_workers', type=int, default=4, help='number of workers')
         self.parser.add_argument('--pin_memory', type=bool, default=True, help='pin memory')
+        
+        #lr
+        self.parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
+        
+        #n_epochs
+        self.parser.add_argument('--n_epochs', type=int, default=10, help='number of epochs')
 
         self.isTrain = True
