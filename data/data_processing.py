@@ -144,6 +144,7 @@ class DeblurDataset(torch.utils.data.Dataset):
 
 
 
+
 class ImageMatchDataset(torch.utils.data.Dataset):
     def __init__(self, root_dir1, root_dir2, transform=None):
         self.root_dir1 = root_dir1
@@ -172,7 +173,50 @@ class ImageMatchDataset(torch.utils.data.Dataset):
         image2 = Image.open(img_path2)
 
         if self.transform:
-            image1 = self.transform(image1)
-            image2 = self.transform(image2)
+            transforms1 = transforms.Compose([transforms.Resize((512, 512)), transforms.ToTensor()])
+            transforms2 = transforms.Compose([transforms.Resize((373, 373)), transforms.ToTensor()])
+            image1 = transforms1(image1)
+            image2 = transforms2(image2)
+
+        return image1, image2
+
+
+class ImageMatchDataset_aws(torch.utils.data.Dataset):
+    def __init__(self, root_dir1, root_dir2, transform=None):
+        self.root_dir1 = root_dir1
+        self.root_dir2 = root_dir2
+        self.transform = transform
+
+        # Get the list of image names in both directories
+        self.img_names1 = sorted(os.listdir(root_dir1))
+        self.img_names2 = sorted(os.listdir(root_dir2))
+
+    def __len__(self):
+        return len(self.img_names1)
+
+    def __getitem__(self, idx):
+        # Get the corresponding image names from both directories
+        img_name1 = self.img_names1[idx]
+        img_name2 = img_name1  # Assume the image names match
+
+        if img_name2 != img_name1:
+            print("Image names don't match: {} and {}".format(img_name1, img_name2))
+
+        img_path1 = os.path.join(self.root_dir1, img_name1)
+        img_path2 = os.path.join(self.root_dir2, img_name2)
+
+        image1 = Image.open(img_path1)
+        image2 = Image.open(img_path2)
+        # image1 = image1.convert('RGB')
+        # image2 = image2.convert('RGB')
+
+
+        # if self.transform:
+        transforms1 = transforms.Compose([transforms.Resize((512, 512)), transforms.ToTensor()])
+        transforms2 = transforms.Compose([transforms.Resize((373, 373)), transforms.ToTensor()])
+        image1 = transforms1(image1)
+        image2 = transforms2(image2)
+        
+        # print(image1, image2)
 
         return image1, image2

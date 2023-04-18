@@ -5,16 +5,18 @@ from data.data_processing import augmentations, DeblurDataset, get_dataloader, s
 import torchvision
 import os 
 from models.unet import UNet
+from data.data_processing import ImageMatchDataset_aws
 
 
 def main(opt):
     
     #dataloading 
-    target_aug_dict = toml.load(opt.augmentations_target_toml)
-    input_aug_dict = toml.load(opt.augmentations_input_toml)
+    # target_aug_dict = toml.load(opt.augmentations_target_toml)
+    # input_aug_dict = toml.load(opt.augmentations_input_toml)
     
-    dataset = DeblurDataset(opt.dataroot, augmentations(input_aug_dict) , augmentations(target_aug_dict))  
+    # dataset = DeblurDataset(opt.dataroot, augmentations(input_aug_dict) , augmentations(target_aug_dict))  
 
+    dataset = ImageMatchDataset_aws(opt.root1, opt.root2)
     
     #split the dataset to train and val
     train_dataset = torch.utils.data.Subset(dataset, range(0, int(0.8*len(dataset))))
@@ -39,7 +41,7 @@ def main(opt):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     #model import
-    model = UNet(3,3)
+    model = UNet(1,1)
     model.to(device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
@@ -59,15 +61,17 @@ def main(opt):
         val_loss = 0
         
         model.train()
-        for i, (og, blur) in enumerate(train_dataloader):
-            og = og.to(device)
-            blur = blur.to(device)
+        for i, (inp_img, tar_img) in enumerate(train_dataloader):
+            inp_img = inp_img.to(device)
+            tar_img = tar_img.to(device)
             
             optimizer.zero_grad()
             
-            output = model(blur)
+            output = model(inp_img)
+
+            print('The output shape is ', output.shape)
             
-            l = loss(output, og)
+            l = loss(output, tar_img)
             
             l.backward()
             
@@ -80,22 +84,23 @@ def main(opt):
             #save the the og, blur and output images as a grid
             if i % 100 == 0:
                 #stack the images
-                images = torch.stack([og, blur, output])
+                images = torch.stack([tar_img, output])
                 
                 #save the images as a grid
-                torchvision.utils.save_image(images, os.path.join(opt.model_outputs, f'epoch_{epoch}_batch_{i}.png'), nrow=3)
-            
+                torchvision.utils.save_image(output, os.path.join(opt.model_outputs, f'epoch_{epoch}_pred_batch_{i}_train.png'))
+                torchvision.utils.save_image(tar_img, os.path.join(opt.model_outputs, f'epoch_{epoch}_og_batch_{i}_train.png'))
+
 
             
         #add no grad for validation
         model.eval()
-        for i, (og, blur) in enumerate(val_dataloader):
-            og = og.to(device)
-            blur = blur.to(device)
+        for i, (inp_img, tar_img) in enumerate(val_dataloader):
+            inp_img = inp_img.to(device)
+            tar_img = tar_img.to(device)
             
-            output = model(blur)
+            output = model(inp_img)
             
-            l = loss(output, og)
+            l = loss(output, tar_img)
             
             val_loss = l.item()
             
@@ -103,10 +108,12 @@ def main(opt):
             
             if i % 50 == 0:
                 #stack the images
-                images = torch.stack([og, blur, output])
+                images = torch.stack([tar_img, output])
                 
                 #save the images as a grid
-                torchvision.utils.save_image(images, os.path.join(opt.model_outputs, f'epoch_{epoch}_batch_{i}_val.png'), nrow=3)
+                torchvision.utils.save_image(output, os.path.join(opt.model_outputs, f'epoch_{epoch}_pred_batch_{i}_val.png'))
+                torchvision.utils.save_image(tar_img, os.path.join(opt.model_outputs, f'epoch_{epoch}_og_batch_{i}_val.png'))
+
   
         #mean loss
         mean_train_loss = train_loss / len(train_dataloader)
